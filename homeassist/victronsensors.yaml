@@ -1,35 +1,52 @@
 - name: "Victron Sensor PV Power"
   state_topic: "/victron/sensor/ve_power_pv"
   value_template: "{{ value }}"
+  unit_of_measurement: "W"
+  state_class: "measurement"
+  device_class: "POWER"
 
 - name: "Victron Sensor PV Voltage"
   state_topic: "/victron/sensor/ve_voltage_pv"
   value_template: "{{ value }}"
+  unit_of_measurement: "V"
+  state_class: "measurement"
+  device_class: "VOLTAGE"
 
 - name: "Victron Sensor Yield Today"
   state_topic: "/victron/sensor/ve_yield_today"
   value_template: "{{ value }}"
+  unit_of_measurement: "kWh"
+  state_class: "measurement"
+  device_class: "ENERGY"
 
 
 - name: "Victron Sensor Power Max Today"
   state_topic: "/victron/sensor/ve_power_max_today"
   value_template: "{{ value }}"
+  unit_of_measurement: "W"
+  state_class: "measurement"
+  device_class: "POWER"
 
 
 - name: "Victron Sensor Battery Voltage"
   state_topic: "/victron/sensor/ve_voltage"
   value_template: "{{ value }}"
+  unit_of_measurement: "V"
+  state_class: "measurement"
+  device_class: "VOLTAGE"
 
 
 - name: "Victron Sensor Battery Current"
   state_topic: "/victron/sensor/ve_current"
   value_template: "{{ value }}"
+  unit_of_measurement: "A"
+  state_class: "measurement"
+  device_class: "CURRENT"
 
 
 - name: "Victron Status"
   state_topic: "/victron/sensor/ve_state"
   value_template: "{{ value }}"
-
 
 - name: "Victron Error"
   state_topic: "/victron/sensor/ve_error"
