@@ -26,13 +26,13 @@
    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
    SOFTWARE.
 */
-#include <ESP8266WiFi.h>
-#include <ESP8266WiFiMulti.h>
-ESP8266WiFiMulti WiFiMulti;
+// #include <ESP8266WiFi.h>
+// #include <ESP8266WiFiMulti.h>
+// ESP8266WiFiMulti WiFiMulti;
 
-// #include <WiFi.h>
-// #include <WiFiMulti.h>
-// WiFiMulti WiFiMulti;
+#include <WiFi.h>
+#include <WiFiMulti.h>
+WiFiMulti WiFiMultiElement;
 
 
 int ssid_count = sizeof(ssid) / sizeof(ssid[0]);
@@ -66,9 +66,9 @@ boolean startWiFiMulti() {
   Serial.print("Number of ssid's" + String(ssid_count));
   // add all ssid's to WiFiMulti
   for (int i = 0; i < ssid_count; i++) {
-    WiFiMulti.addAP(ssid[i], pw[i]);
+    WiFiMultiElement.addAP(ssid[i], pw[i]);
   }
-  if ((WiFiMulti.run() == WL_CONNECTED)) {
+  if ((WiFiMultiElement.run() == WL_CONNECTED)) {
     Serial.print("WiFi connected");
 
     return true;

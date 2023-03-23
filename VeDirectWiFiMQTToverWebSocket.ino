@@ -46,21 +46,23 @@ keyAndValue_t VEError[] = {
 {119,"User settings invalid"},
 };
 int mqtt_server_count = sizeof(mqtt_server) / sizeof(mqtt_server[0]);
+#define RXD2 16
+#define TXD2 17
 
 WebSocketsClient client;
 MQTTPubSubClient espMQTT;
 
 // Serial1 GPIO1 (TX) and GPIO3 (RX) -> 8266 RX und TX Pins am Board
 // Serial1: RX1 on GPIO9, TX1 on GPIO10 -> ESP32 Wroom: RX1=16, TX1=17
-HardwareSerial VEConnect ( Serial1 ); 
+// HardwareSerial VEConnect ( Serial1 ); 
 
 // VEDirect instantiated with relevant serial object
-VEDirect myve(VEConnect);
-LiquidCrystal_I2C lcd(0x3F,16,2);   
-
+// VEDirect myve(VEConnect);
+// LiquidCrystal_I2C lcd(0x3F,16,2);   
 
 void setup() {
     Serial.begin(115200);
+    Serial2.begin(19200, SERIAL_8N1, RXD2, TXD2);
 
     if (startWiFiMulti()) {
       Serial.println("Wifi connected make next step...");
@@ -109,70 +111,75 @@ void loop() {
 
         Serial.println("Reading values from Victron Energy device using VE.Direct text mode");
         Serial.println();
-
-        // Read the data
-        if(myve.begin()) {		// test connection
-          VE_fw = myve.read(VE_FW);
-          VE_voltage = myve.read(VE_VOLTAGE);
-          VE_current = myve.read(VE_CURRENT);
-          VE_voltage_pv = myve.read(VE_VOLTAGE_PV);
-          VE_power_pv = myve.read(VE_POWER_PV);
-          VE_state = myve.read(VE_STATE);
-          VE_mppt = myve.read(VE_MPPT);
-          VE_error = myve.read(VE_ERROR);
-          VE_load = myve.read(VE_LOAD);
-          VE_yield_total = myve.read(VE_YIELD_TOTAL);
-          VE_yield_today = myve.read(VE_YIELD_TODAY);
-          VE_power_max_today = myve.read(VE_POWER_MAX_TODAY);
-          VE_yield_yesterday = myve.read(VE_YIELD_YESTERDAY);
-          VE_power_max_yesterday = myve.read(VE_POWER_MAX_YESTERDAY);
-          VE_day_sequence_number = myve.read(VE_DAY_SEQUENCE_NUMBER);
-          
-        } else {
-          Serial.println("Could not open serial port to VE device");
-          //while (1);
+        
+        if (Serial2.available()) {
+          Serial.println("Read Serial");
+          Serial.print(char(Serial2.read()));
         }
 
-        // Print each of the values
-        Serial.print("Voltage                ");
-        Serial.println(VE_voltage, DEC);
-        Serial.print("Current                ");
-        Serial.println(VE_current, DEC);
-        Serial.print("Power PV               ");
-        Serial.println(VE_power_pv, DEC);
-        Serial.print("Voltage PV             ");
-        Serial.println(VE_voltage_pv, DEC);
-        Serial.print("Yield Total kWh        ");
-        Serial.println(VE_yield_total, DEC);
-        Serial.print("Yield Today kWh        ");
-        Serial.println(VE_yield_today, DEC);
-        Serial.print("Yield Yesterday kWh    ");
-        Serial.println(VE_yield_yesterday, DEC);
-        Serial.print("Max Power Today        ");
-        Serial.println(VE_power_max_today, DEC);
-        Serial.print("Max Power Yesterday    ");
-        Serial.println(VE_power_max_yesterday, DEC);
-        Serial.print("MPPT Code             ");
-        Serial.println(VE_mppt, DEC);
-        Serial.print("MPPT Firmware         ");
-        Serial.println(VE_fw, DEC);
-        Serial.print("Day Sequence Number   ");
-        Serial.println(VE_day_sequence_number, DEC);
-        Serial.print("Error Code             ");
-        Serial.println(VE_error, DEC);
-        Serial.print("Error Code             ");
-        Serial.println(VEStatus[VE_state].value);
-        Serial.print("State of operation     ");
-        Serial.println(VE_state, DEC);
-        Serial.print("State of operation     ");
-        Serial.println(VEError[VE_error].value);
-        Serial.println();
+        // Read the data
+        // if(myve.begin()) {		// test connection
+        //   VE_fw = myve.read(VE_FW);
+        //   VE_voltage = myve.read(VE_VOLTAGE);
+        //   VE_current = myve.read(VE_CURRENT);
+        //   VE_voltage_pv = myve.read(VE_VOLTAGE_PV);
+        //   VE_power_pv = myve.read(VE_POWER_PV);
+        //   VE_state = myve.read(VE_STATE);
+        //   VE_mppt = myve.read(VE_MPPT);
+        //   VE_error = myve.read(VE_ERROR);
+        //   VE_load = myve.read(VE_LOAD);
+        //   VE_yield_total = myve.read(VE_YIELD_TOTAL);
+        //   VE_yield_today = myve.read(VE_YIELD_TODAY);
+        //   VE_power_max_today = myve.read(VE_POWER_MAX_TODAY);
+        //   VE_yield_yesterday = myve.read(VE_YIELD_YESTERDAY);
+        //   VE_power_max_yesterday = myve.read(VE_POWER_MAX_YESTERDAY);
+        //   VE_day_sequence_number = myve.read(VE_DAY_SEQUENCE_NUMBER);
+          
+        // } else {
+        //   Serial.println("Could not open serial port to VE device");
+        //   //while (1);
+        // }
 
-        // Copy the raw data stream (minus the \r) to Serial0
-        // Call read() with a token that won't match any VE.Direct labels
-        // Serial.println("All data from device:");
-        // myve.read(VE_DUMP);
-        Serial.println();
+        // // Print each of the values
+        // Serial.print("Voltage                ");
+        // Serial.println(VE_voltage, DEC);
+        // Serial.print("Current                ");
+        // Serial.println(VE_current, DEC);
+        // Serial.print("Power PV               ");
+        // Serial.println(VE_power_pv, DEC);
+        // Serial.print("Voltage PV             ");
+        // Serial.println(VE_voltage_pv, DEC);
+        // Serial.print("Yield Total kWh        ");
+        // Serial.println(VE_yield_total, DEC);
+        // Serial.print("Yield Today kWh        ");
+        // Serial.println(VE_yield_today, DEC);
+        // Serial.print("Yield Yesterday kWh    ");
+        // Serial.println(VE_yield_yesterday, DEC);
+        // Serial.print("Max Power Today        ");
+        // Serial.println(VE_power_max_today, DEC);
+        // Serial.print("Max Power Yesterday    ");
+        // Serial.println(VE_power_max_yesterday, DEC);
+        // Serial.print("MPPT Code             ");
+        // Serial.println(VE_mppt, DEC);
+        // Serial.print("MPPT Firmware         ");
+        // Serial.println(VE_fw, DEC);
+        // Serial.print("Day Sequence Number   ");
+        // Serial.println(VE_day_sequence_number, DEC);
+        // Serial.print("Error Code             ");
+        // Serial.println(VE_error, DEC);
+        // Serial.print("Error Code             ");
+        // Serial.println(VEStatus[VE_state].value);
+        // Serial.print("State of operation     ");
+        // Serial.println(VE_state, DEC);
+        // Serial.print("State of operation     ");
+        // Serial.println(VEError[VE_error].value);
+        // Serial.println();
+
+        // // Copy the raw data stream (minus the \r) to Serial0
+        // // Call read() with a token that won't match any VE.Direct labels
+        // // Serial.println("All data from device:");
+        // // myve.read(VE_DUMP);
+        // Serial.println();
 
         Serial.print("Send MQTT data...");
         Serial.println();
