@@ -26,13 +26,13 @@
    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
    SOFTWARE.
 */
-// #include <ESP8266WiFi.h>
-// #include <ESP8266WiFiMulti.h>
-// ESP8266WiFiMulti WiFiMulti;
+#include <ESP8266WiFi.h>
+#include <ESP8266WiFiMulti.h>
+ESP8266WiFiMulti WiFiMultiElement;
 
-#include <WiFi.h>
-#include <WiFiMulti.h>
-WiFiMulti WiFiMultiElement;
+// #include <WiFi.h>
+// #include <WiFiMulti.h>
+// WiFiMulti WiFiMultiElement;
 
 
 int ssid_count = sizeof(ssid) / sizeof(ssid[0]);
