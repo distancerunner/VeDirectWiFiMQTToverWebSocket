@@ -1,0 +1,21 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/home/kingkong/Arduino/libraries/**",
+                "/home/kingkong/Arduino/**",
+                "/home/kingkong/.platformio/**",
+                "/home/kingkong/.platformio/packages/**",
+                "/home/kingkong/.platformio/packages/framework-espidf/**"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "c17",
+            "cppStandard": "gnu++17",
+            "intelliSenseMode": "linux-gcc-x64"
+        }
+    ],
+    "version": 4
+}

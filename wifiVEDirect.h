@@ -26,13 +26,25 @@
    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
    SOFTWARE.
 */
+#ifndef ESP32
 #include <ESP8266WiFi.h>
 #include <ESP8266WiFiMulti.h>
 ESP8266WiFiMulti WiFiMultiElement;
+#endif
+#ifdef ESP32
+#include <WiFi.h>
+#include <WiFiMulti.h>
+WiFiMulti WiFiMultiElement;
+#endif
 
-// #include <WiFi.h>
-// #include <WiFiMulti.h>
-// WiFiMulti WiFiMultiElement;
+
+
+#include <WebSocketsClient.h>  // include before MQTTPubSubClient.h
+#include <MQTTPubSubClient.h>
+
+WebSocketsClient client;
+MQTTPubSubClient espMQTT;
+
 
 
 int ssid_count = sizeof(ssid) / sizeof(ssid[0]);
@@ -87,4 +99,36 @@ boolean checkWiFi(){
   return true;
 }
 
+void espUpdater() {
+    espMQTT.update();  // should be called
+}
 
+void mqttSend(String sensor, String value) {
+    Serial.print("Sending " + sensor);
+    Serial.println();
+
+    espMQTT.publish(sensor, value);
+}
+
+//
+// Startup
+//
+boolean startMQTT() {
+    Serial.println("connecting to host...");
+    client.begin(mqtt_server[0], mqtt_port[0], "/mqtt", "mqtt");  // "mqtt" is required
+    client.setReconnectInterval(2000);
+
+    // initialize mqtt client
+    espMQTT.begin(client);
+    delay(1000);
+    int maxretries = 5;
+    while (!espMQTT.isConnected() && maxretries-- > 0) {
+      Serial.println(".");
+      if (espMQTT.connect(mqtt_clientID[0], mqtt_username[0], mqtt_pw[0])) {
+        return true;
+      } else {
+        delay(2000);
+      }
+    }
+    return false;
+}

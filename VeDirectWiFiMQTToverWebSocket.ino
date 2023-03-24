@@ -1,18 +1,33 @@
 #include "config.h"
 
-#include <HardwareSerial.h>
-#include "VEDirect.h"
+// #include <HardwareSerial.h>
+// #include "VEDirect.h"
 #include "wifiVEDirect.h"
-#include <WebSocketsClient.h>  // include before MQTTPubSubClient.h
-#include <MQTTPubSubClient.h>
+
 // #include <Wire.h>           
 // #include <LiquidCrystal_I2C.h> 
+#ifndef ESP32
+#include <SoftwareSerial.h>
+#define rxPin D2 // PINs according a new NodeMCU V3 Board, with an ESP8266 Chipset.
+#define txPin D3
+#endif
+#ifdef ESP32
+#define rxPin 18 // PINs according a new NodeMCU V3 Board, with an ESP8266 Chipset.
+#define txPin 19
+#define LED_BUILTIN 2
+#endif
+
+#ifndef ESP32
+EspSoftwareSerial::UART victronSerial;
+#endif
+
 
 int counter=0;
+String label, val;
 // 32 bit ints to collect the data from the device
 int32_t VE_fw, VE_voltage, VE_current, VE_voltage_pv, VE_power_pv, VE_state, VE_mppt,
 		VE_error, VE_yield_total, VE_yield_today, VE_power_max_today, VE_yield_yesterday, 
-		VE_power_max_yesterday, VE_day_sequence_number;
+		VE_power_max_yesterday, VE_day_sequence_number, VE_serial_nr, VE_prod_id;
 
 // Boolean to collect an ON/OFF value
 uint8_t VE_load;
@@ -46,48 +61,132 @@ keyAndValue_t VEError[] = {
 {119,"User settings invalid"},
 };
 int mqtt_server_count = sizeof(mqtt_server) / sizeof(mqtt_server[0]);
-#define RXD2 16
-#define TXD2 17
-
-WebSocketsClient client;
-MQTTPubSubClient espMQTT;
-
-// Serial1 GPIO1 (TX) and GPIO3 (RX) -> 8266 RX und TX Pins am Board
-// Serial1: RX1 on GPIO9, TX1 on GPIO10 -> ESP32 Wroom: RX1=16, TX1=17
-HardwareSerial VEConnect ( Serial1 ); 
-
-// VEDirect instantiated with relevant serial object
-VEDirect myve(VEConnect);
-// LiquidCrystal_I2C lcd(0x3F,16,2);   
 
 void setup() {
-    Serial.begin(115200);
-    // Serial2.begin(19200, SERIAL_8N1, RXD2, TXD2);
+  Serial.begin(19200);
+  pinMode(LED_BUILTIN, OUTPUT);  // Initialize the LED_BUILTIN pin as an output
+#ifndef ESP32
+  victronSerial.begin(19200, SWSERIAL_8N1, rxPin, txPin, false);
+#endif
+#ifdef ESP32
+  Serial2.begin(19200, SERIAL_8N1, 18, 19); // Pins D18 and D19 accoring an ESP32 DEVKITV1
+#endif
 
-    if (startWiFiMulti()) {
-      Serial.println("Wifi connected make next step...");
-      Serial.println();  
-    
-      setClock();
-      if ( startMQTT()) {
-        return;
-      }     
+  if (startWiFiMulti()) {
+    Serial.println("Wifi connected make next step...");
+    Serial.println();  
+  
+    setClock();
+    if ( startMQTT()) {
+      return;
+    }     
+  }
+#ifndef ESP32
+  if (!victronSerial) { // If the object did not initialize, then its configuration is invalid
+    Serial.println("Invalid EspSoftwareSerial pin configuration, check config"); 
+    while (1) { // Don't continue with invalid configuration
+      delay (1000);
     }
-
-    delay(30000);
-    ESP.restart();
+  }
+#endif
+  delay(30000);
+  ESP.restart();
 }
 
 
 void loop() {
-    // espUpdater();  // should be called
     espMQTT.update();  // should be called
     counter++;
     static uint32_t prev_ms = millis();
 
+    if(Serial.available()){
+      // For testing, send USB input data over bridged pins from TX to RX pin
+#ifndef ESP32
+      victronSerial.write(Serial.read());
+#endif
+#ifdef ESP32
+      Serial2.write(Serial.read());
+#endif
+    }
+
+
     if (counter > 255) {
       counter = 0;
     }
+
+#ifndef ESP32
+    if (victronSerial.available() > 0) {
+      Serial.println("Reading values from Victron Energy device using VE.Direct text mode");
+      Serial.println();
+      
+      // Serial.println("Daten verfügbar");
+      label = victronSerial.readStringUntil('\t');      
+      val = victronSerial.readStringUntil('\r');
+      // val = victronSerial.readStringUntil('\r\r\n');
+#endif
+#ifdef ESP32
+    if (Serial2.available() > 0) {
+      // Serial.println("Daten verfügbar");
+      label = Serial2.readStringUntil('\t');      
+      val = Serial2.readStringUntil('\r');
+      // val = Serial2.readStringUntil('\r\r\n');
+#endif
+      digitalWrite(LED_BUILTIN, HIGH);  // Turn the LED off by making the voltage HIGH
+      delay(200);
+      digitalWrite(LED_BUILTIN, LOW);  // Turn the LED on (Note that LOW is the voltage level
+      // Serial.println(label);
+      // Serial.println(val);
+      if(label == "PID") {
+        // VE_prod_id = val;
+      } else if (label == "FW") {
+        // VE_fw = val;
+      } else if (label == "SER#") {
+        // VE_serial_nr = val;
+      } else if (label == "V") {
+        float temp = val.toFloat();
+        temp = temp / 1000;
+        VE_voltage = temp;
+        // Serial.println(V);  
+      } else if (label == "I") {
+        VE_current = val.toFloat();
+      } else if (label == "VPV") {
+        float temp = val.toFloat();
+        temp = temp / 1000;
+        VE_voltage_pv = temp;
+      } else if (label == "PPV") {
+        VE_power_pv = val.toFloat();
+      } else if (label == "CS") {
+        VE_state = val.toInt();
+      } else if (label == "MPPT") {
+        // VE_mppt = val;
+      // } else if (label == "OR") {
+      //   OR = val;
+      } else if (label == "ERR") {
+        VE_error = val.toInt();
+      } else if (label == "LOAD") {
+        VE_load = val.toFloat();
+      // } else if (label == "IL") {
+        // IL = val.toFloat();
+      } else if (label == "H19") {
+        int temp = val.toInt();
+        temp = temp * 10;
+        VE_yield_total = temp;
+      } else if (label == "H20") {
+        int temp = val.toInt();
+        temp = temp * 10;
+        VE_yield_today = temp;
+      } else if (label == "H21") {
+        VE_power_max_today = val.toInt();
+      } else if (label == "H22") {
+        int temp = val.toInt();
+        temp = temp * 10;
+        VE_yield_yesterday = temp;
+      } else if (label == "H23") {
+        VE_power_max_yesterday = val.toInt();
+      } else if (label == "HSDS") {
+        VE_day_sequence_number = val.toInt();
+      }  
+    } 
 
     if (millis() > prev_ms + 10000) {
       if ( checkWiFi()) {
@@ -107,37 +206,6 @@ void loop() {
             Serial.print("MQTT Connection lost, restart system");
             ESP.restart();          
           }
-        }
-
-        Serial.println("Reading values from Victron Energy device using VE.Direct text mode");
-        Serial.println();
-        
-        // if (Serial2.available()) {
-        //   Serial.println("Read Serial");
-        //   Serial.print(char(Serial2.read()));
-        // }
-
-        // Read the data
-        if(myve.begin()) {		// test connection
-          VE_fw = myve.read(VE_FW);
-          VE_voltage = myve.read(VE_VOLTAGE);
-          VE_current = myve.read(VE_CURRENT);
-          VE_voltage_pv = myve.read(VE_VOLTAGE_PV);
-          VE_power_pv = myve.read(VE_POWER_PV);
-          VE_state = myve.read(VE_STATE);
-          VE_mppt = myve.read(VE_MPPT);
-          VE_error = myve.read(VE_ERROR);
-          VE_load = myve.read(VE_LOAD);
-          VE_yield_total = myve.read(VE_YIELD_TOTAL);
-          VE_yield_today = myve.read(VE_YIELD_TODAY);
-          VE_power_max_today = myve.read(VE_POWER_MAX_TODAY);
-          VE_yield_yesterday = myve.read(VE_YIELD_YESTERDAY);
-          VE_power_max_yesterday = myve.read(VE_POWER_MAX_YESTERDAY);
-          VE_day_sequence_number = myve.read(VE_DAY_SEQUENCE_NUMBER);
-          
-        } else {
-          Serial.println("Could not open serial port to VE device");
-          //while (1);
         }
 
         // Print each of the values
@@ -175,16 +243,8 @@ void loop() {
         Serial.println(VEError[VE_error].value);
         Serial.println();
 
-        // // Copy the raw data stream (minus the \r) to Serial0
-        // // Call read() with a token that won't match any VE.Direct labels
-        // // Serial.println("All data from device:");
-        // // myve.read(VE_DUMP);
-        // Serial.println();
-
         Serial.print("Send MQTT data...");
         Serial.println();
-        // delay(5000);
-
         mqttSend("/victron/sensor/watt", String(counter));
         mqttSend("/victron/sensor/ve_power_pv", String(VE_power_pv));
         mqttSend("/victron/sensor/ve_voltage_pv", String(VE_voltage_pv));
@@ -200,58 +260,6 @@ void loop() {
         prev_ms = millis();
       }
     }
-}
-
-void espUpdater() {
-    espMQTT.update();  // should be called
-}
-
-void mqttSend(String sensor, String value) {
-    Serial.print("Sending " + sensor);
-    Serial.println();
-
-    espMQTT.publish(sensor, value);
-}
-
-// void mqttSubscribe() {
-//     // subscribe callback which is called when every packet has come
-//     espMQTT.subscribe([](const String& topic, const String& payload, const size_t size) {
-//         Serial.println("mqtt received: " + topic + " - " + payload);
-//     });
-
-//     // subscribe topic and callback which is called when /hello has come
-//     espMQTT.subscribe("/victron/sensor/watt", [](const String& payload, const size_t size) {
-//         Serial.print("victron/sensor/watt ");
-//         Serial.println(payload);
-//     });
-
-//     espMQTT.subscribe("/victron/sensor/ve_power_pv", [](const String& payload, const size_t size) {
-//         Serial.print("victron/sensor/ve_power_pv ");
-//         Serial.println(payload);
-//     });
-// }
-
-//
-// Startup
-//
-boolean startMQTT() {
-    Serial.println("connecting to host...");
-    client.begin(mqtt_server[0], mqtt_port[0], "/mqtt", "mqtt");  // "mqtt" is required
-    client.setReconnectInterval(2000);
-
-    // initialize mqtt client
-    espMQTT.begin(client);
-    delay(1000);
-    int maxretries = 5;
-    while (!espMQTT.isConnected() && maxretries-- > 0) {
-      Serial.println(".");
-      if (espMQTT.connect(mqtt_clientID[0], mqtt_username[0], mqtt_pw[0])) {
-        return true;
-      } else {
-        delay(2000);
-      }
-    }
-    return false;
 }
 
 
