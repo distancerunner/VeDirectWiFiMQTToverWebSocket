@@ -1,11 +1,12 @@
 - name: "Victron Sensor PV Power"
+  unique_id: "VictronSensorPVPower"
   state_topic: "/victron/sensor/ve_power_pv"
-  value_template: "{{ value | float }}"
-  unit_of_measurement: "W"
+  value_template: "{{ value }}"
   state_class: "measurement"
-  device_class: "POWER"
+  unit_of_measurement: "W"
 
 - name: "Victron Sensor PV Voltage"
+  unique_id: "VictronSensorPVVoltage"
   state_topic: "/victron/sensor/ve_voltage_pv"
   value_template: "{{ value | float }}"
   unit_of_measurement: "V"
@@ -13,22 +14,39 @@
   device_class: "VOLTAGE"
 
 - name: "Victron Sensor Yield Today"
+  unique_id: "VictronSensorYieldToday"
   state_topic: "/victron/sensor/ve_yield_today"
-  value_template: "{{ value | float }}"
-  unit_of_measurement: "kWh"
+  value_template: "{{ value }}"
+  unit_of_measurement: "Wh"
   state_class: "measurement"
+  device_class: "ENERGY"
+
+- name: "Victron Sensor Yield Total"
+  unique_id: "VictronSensorYieldTotal"
+  state_topic: "/victron/sensor/ve_yield_total"
+  value_template: "{{ value }}"
+  unit_of_measurement: kWh
+  state_class: total_increasing
   device_class: "ENERGY"
 
 
 - name: "Victron Sensor Power Max Today"
   state_topic: "/victron/sensor/ve_power_max_today"
-  value_template: "{{ value | float }}"
+  value_template: "{{ value }}"
+  unit_of_measurement: "W"
+  state_class: "measurement"
+  device_class: "POWER"
+
+- name: "Victron Sensor Power Max Yesterday"
+  state_topic: "/victron/sensor/ve_power_max_yesterday"
+  value_template: "{{ value }}"
   unit_of_measurement: "W"
   state_class: "measurement"
   device_class: "POWER"
 
 
 - name: "Victron Sensor Battery Voltage"
+  unique_id: "VictronSensorBatteryVoltage"
   state_topic: "/victron/sensor/ve_voltage"
   value_template: "{{ value | float }}"
   unit_of_measurement: "V"
@@ -37,6 +55,7 @@
 
 
 - name: "Victron Sensor Battery Current"
+  unique_id: "VictronSensorBatteryCurrent"
   state_topic: "/victron/sensor/ve_current"
   value_template: "{{ value | float }}"
   unit_of_measurement: "A"
