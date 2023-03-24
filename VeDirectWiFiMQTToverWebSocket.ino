@@ -25,9 +25,11 @@ EspSoftwareSerial::UART victronSerial;
 int counter=0;
 String label, val;
 // 32 bit ints to collect the data from the device
-int32_t VE_fw, VE_voltage, VE_current, VE_voltage_pv, VE_power_pv, VE_state, VE_mppt,
-		VE_error, VE_yield_total, VE_yield_today, VE_power_max_today, VE_yield_yesterday, 
+int32_t VE_fw, VE_state, VE_mppt,
+		VE_error, VE_yield_today, VE_power_max_today, VE_yield_yesterday, VE_power_pv,
 		VE_power_max_yesterday, VE_day_sequence_number, VE_serial_nr, VE_prod_id;
+
+float VE_voltage, VE_current, VE_voltage_pv, VE_yield_total;
 
 // Boolean to collect an ON/OFF value
 uint8_t VE_load;
@@ -71,7 +73,7 @@ void setup() {
 #ifdef ESP32
   Serial2.begin(19200, SERIAL_8N1, 18, 19); // Pins D18 and D19 accoring an ESP32 DEVKITV1
 #endif
-
+  
   if (startWiFiMulti()) {
     Serial.println("Wifi connected make next step...");
     Serial.println();  
@@ -89,6 +91,7 @@ void setup() {
     }
   }
 #endif
+  Serial.println("Wait 30s and than restart...");
   delay(30000);
   ESP.restart();
 }
@@ -96,19 +99,18 @@ void setup() {
 
 void loop() {
     espMQTT.update();  // should be called
-    counter++;
+    // counter++;
     static uint32_t prev_ms = millis();
 
-    if(Serial.available()){
-      // For testing, send USB input data over bridged pins from TX to RX pin
-#ifndef ESP32
-      victronSerial.write(Serial.read());
-#endif
-#ifdef ESP32
-      Serial2.write(Serial.read());
-#endif
-    }
-
+//     if(Serial.available()){
+//       // For testing, send USB input data over bridged pins from TX to RX pin
+// #ifndef ESP32
+//       victronSerial.write(Serial.read());
+// #endif
+// #ifdef ESP32
+//       Serial2.write(Serial.read());
+// #endif
+//     }
 
     if (counter > 255) {
       counter = 0;
@@ -122,39 +124,84 @@ void loop() {
       // Serial.println("Daten verfügbar");
       label = victronSerial.readStringUntil('\t');      
       val = victronSerial.readStringUntil('\r');
-      // val = victronSerial.readStringUntil('\r\r\n');
 #endif
 #ifdef ESP32
     if (Serial2.available() > 0) {
-      // Serial.println("Daten verfügbar");
-      label = Serial2.readStringUntil('\t');      
+      // Serial.println(counter);
+      label = Serial2.readStringUntil('\t');
       val = Serial2.readStringUntil('\r');
       // val = Serial2.readStringUntil('\r\r\n');
 #endif
-      digitalWrite(LED_BUILTIN, HIGH);  // Turn the LED off by making the voltage HIGH
-      delay(200);
-      digitalWrite(LED_BUILTIN, LOW);  // Turn the LED on (Note that LOW is the voltage level
-      // Serial.println(label);
+      label.trim();
+      // digitalWrite(LED_BUILTIN, HIGH);  // Turn the LED off by making the voltage HIGH
+      // delay(200);
+      // digitalWrite(LED_BUILTIN, LOW);  // Turn the LED on (Note that LOW is the voltage level
+      // delay(200);
+
+      // Serial.println("");
+      // Serial.println("###################");
+      // Serial.print("label:");
+      // Serial.print(label);
       // Serial.println(val);
+      // Serial.print("value:");
+      // Serial.println(":LineEnd");
+      // Serial.println(label.length());
+      // Serial.println("###################");
+      // Serial.println(label.indexOf("VPV"));
+      // Serial.println(label.indexOf("V"));
+      // Serial.println("###################");
+
+
+      // if (label.startsWith("V\0")) {
+      // if(label.indexOf("VPV") > 0) {
+      //   float temp = val.toFloat();
+      //   temp = temp / 1000;
+      //   VE_voltage = temp;
+      //   Serial.println("VOLT0 " + VE_voltage);  
+      // }
+
+      // if(label.indexOf("VPV") > 0) {
+      //   float temp = val.toFloat();
+      //   temp = temp / 1000;
+      //   VE_voltage_pv = temp;
+      //   Serial.println("VOLT0 " + VE_voltage_pv);  
+      // }
+
+      // delay(500);
       if(label == "PID") {
         // VE_prod_id = val;
-      } else if (label == "FW") {
+      } else if (label.indexOf("FW") > 0) {
         // VE_fw = val;
-      } else if (label == "SER#") {
+      } else if (label.indexOf("SER#") > 0) {
         // VE_serial_nr = val;
-      } else if (label == "V") {
-        float temp = val.toFloat();
-        temp = temp / 1000;
-        VE_voltage = temp;
-        // Serial.println(V);  
-      } else if (label == "I") {
-        VE_current = val.toFloat();
+      // } else if (label.indexOf("VPV") > 0) {
       } else if (label == "VPV") {
         float temp = val.toFloat();
         temp = temp / 1000;
         VE_voltage_pv = temp;
+      // } else if (label.indexOf("V") > 0) {
+      } else if (label == "V") {
+        // Serial.println("Volt" + val);
+        // Serial.println(val);
+        val = val.substring(0, 4);
+      // if (val != 0) {
+        float temp = val.toFloat();
+        temp = temp / 100;
+        // Serial.println(temp);
+        VE_voltage = temp;
+        // }
+      // } else if (label.indexOf("I") > 0) {
+      } else if (label == "I") {
+        // Serial.println("Current" + val);
+        val = val.substring(0, 4);
+        float temp = val.toFloat();
+        // if (temp <= 100) {
+        temp = temp / 1000;
+        VE_current = temp;
       } else if (label == "PPV") {
-        VE_power_pv = val.toFloat();
+        // Serial.println(val);
+        float temp = val.toInt();
+        VE_power_pv = temp;
       } else if (label == "CS") {
         VE_state = val.toInt();
       } else if (label == "MPPT") {
@@ -168,8 +215,9 @@ void loop() {
       // } else if (label == "IL") {
         // IL = val.toFloat();
       } else if (label == "H19") {
-        int temp = val.toInt();
-        temp = temp * 10;
+        val = val.substring(0, 4);
+        float temp = val.toFloat();
+        temp = temp / 100;
         VE_yield_total = temp;
       } else if (label == "H20") {
         int temp = val.toInt();
@@ -210,42 +258,38 @@ void loop() {
 
         // Print each of the values
         Serial.print("Voltage                ");
-        Serial.println(VE_voltage, DEC);
+        Serial.println(String(VE_voltage));
         Serial.print("Current                ");
-        Serial.println(VE_current, DEC);
+        Serial.println(String(VE_current));
         Serial.print("Power PV               ");
-        Serial.println(VE_power_pv, DEC);
+        Serial.println(String(VE_power_pv));
         Serial.print("Voltage PV             ");
-        Serial.println(VE_voltage_pv, DEC);
+        Serial.println(String(VE_voltage_pv));
         Serial.print("Yield Total kWh        ");
-        Serial.println(VE_yield_total, DEC);
-        Serial.print("Yield Today kWh        ");
-        Serial.println(VE_yield_today, DEC);
-        Serial.print("Yield Yesterday kWh    ");
-        Serial.println(VE_yield_yesterday, DEC);
-        Serial.print("Max Power Today        ");
-        Serial.println(VE_power_max_today, DEC);
-        Serial.print("Max Power Yesterday    ");
-        Serial.println(VE_power_max_yesterday, DEC);
-        Serial.print("MPPT Code             ");
-        Serial.println(VE_mppt, DEC);
-        Serial.print("MPPT Firmware         ");
-        Serial.println(VE_fw, DEC);
-        Serial.print("Day Sequence Number   ");
-        Serial.println(VE_day_sequence_number, DEC);
-        Serial.print("Error Code             ");
-        Serial.println(VE_error, DEC);
-        Serial.print("Error Code             ");
+        Serial.println(String(VE_yield_total));
+        Serial.print("Yield Today Wh         ");
+        Serial.println(String(VE_yield_today));
+        Serial.print("Yield Yesterday Wh    ");
+        Serial.println(String(VE_yield_yesterday));
+        Serial.print("Max Power Today W      ");
+        Serial.println(String(VE_power_max_today));
+        Serial.print("Max Power Yesterday W  ");
+        Serial.println(String(VE_power_max_yesterday));
+        // Serial.print("MPPT Code             ");
+        // Serial.println(String(VE_mppt));
+        // Serial.print("MPPT Firmware         ");
+        // Serial.println(String(VE_fw));
+        Serial.print("Day Sequence Number    ");
+        Serial.println(String(VE_day_sequence_number));
+        Serial.print("State of operation     ");
         Serial.println(VEStatus[VE_state].value);
-        Serial.print("State of operation     ");
-        Serial.println(VE_state, DEC);
-        Serial.print("State of operation     ");
+        Serial.print("Error Code             ");
         Serial.println(VEError[VE_error].value);
         Serial.println();
 
         Serial.print("Send MQTT data...");
         Serial.println();
-        mqttSend("/victron/sensor/watt", String(counter));
+        // mqttSend("/victron/sensor/watt", String(counter));
         mqttSend("/victron/sensor/ve_power_pv", String(VE_power_pv));
         mqttSend("/victron/sensor/ve_voltage_pv", String(VE_voltage_pv));
         mqttSend("/victron/sensor/ve_yield_today", String(VE_yield_today));

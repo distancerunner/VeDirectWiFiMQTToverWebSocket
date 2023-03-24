@@ -80,6 +80,19 @@ boolean startWiFiMulti() {
   for (int i = 0; i < ssid_count; i++) {
     WiFiMultiElement.addAP(ssid[i], pw[i]);
   }
+  delay(2000);
+  if ((WiFiMultiElement.run() == WL_CONNECTED)) {
+    Serial.print("WiFi connected");
+
+    return true;
+  }
+  delay(4000);
+  if ((WiFiMultiElement.run() == WL_CONNECTED)) {
+    Serial.print("WiFi connected");
+
+    return true;
+  }
+  delay(6000);
   if ((WiFiMultiElement.run() == WL_CONNECTED)) {
     Serial.print("WiFi connected");
 
@@ -104,9 +117,8 @@ void espUpdater() {
 }
 
 void mqttSend(String sensor, String value) {
-    Serial.print("Sending " + sensor);
-    Serial.println();
-
+    // Serial.print("Sending " + sensor);
+    // Serial.println();
     espMQTT.publish(sensor, value);
 }
 
