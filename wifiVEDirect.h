@@ -10,9 +10,12 @@ WiFiMulti WiFiMultiElement;
 #endif
 
 
+const char* time_zone = "CET-1CEST,M3.5.0,M10.5.0/3";  // TimeZone rule for Europe/Rome including daylight adjustment rules (optional)
+
 
 #include <WebSocketsClient.h>  // include before MQTTPubSubClient.h
 #include <MQTTPubSubClient.h>
+#include <time.h>
 
 WebSocketsClient client;
 MQTTPubSubClient espMQTT;
@@ -21,9 +24,21 @@ MQTTPubSubClient espMQTT;
 
 int ssid_count = sizeof(ssid) / sizeof(ssid[0]);
 
+String getClockTime()
+{
+  struct tm timeinfo;
+  if(!getLocalTime(&timeinfo)){
+    Serial.println("No time available (yet)");
+    return "No Time set";
+  }
+  Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
+
+  return String((&timeinfo, "%A, %B %d %Y %H:%M:%S"));
+}
+
 // Set time via NTP, as required for x.509 validation
 void setClock() {
-  configTime(0, 0, "pool.ntp.org", "time.nist.gov");  // UTC
+  configTime(3600, 3600, "pool.ntp.org", "time.nist.gov");  // UTC
 
   Serial.print("Waiting for NTP time sync: ");
   time_t now = time(nullptr);
@@ -36,14 +51,8 @@ void setClock() {
   Serial.print("");
   struct tm timeinfo;
   gmtime_r(&now, &timeinfo);
-  Serial.print("NTP time" + String(asctime(&timeinfo)));
-}
-
-String getClockTime() {
-  time_t now = time(nullptr);
-  struct tm timeinfo;
-  gmtime_r(&now, &timeinfo);
-  return String(asctime(&timeinfo));
+  // Serial.print("NTP time" + String(asctime(&timeinfo)));
+  getClockTime();
 }
 
 boolean startWiFiMulti() {
@@ -56,7 +65,7 @@ boolean startWiFiMulti() {
   // try connecting 4 times, with an timeout between
   for (int i = 0; i < 5; i++) {
     if ((WiFiMultiElement.run() == WL_CONNECTED)) {
-      Serial.print("WiFi connected");
+      Serial.println("WiFi connected in round:" + (i+1));
       return true;
     }
     delay(1000*i);

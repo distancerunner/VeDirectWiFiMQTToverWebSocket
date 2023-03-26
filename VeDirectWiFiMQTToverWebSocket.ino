@@ -100,6 +100,8 @@ void loop() {
     espMQTT.update();  // should be called
     // counter++;
     static uint32_t prev_ms = millis();
+    uint32_t oldPPVValue = 0;
+    uint32_t sendingInterval = 10000;
 
     if(Serial.available()){
       // For testing, send USB input data over bridged pins from TX to RX pin
@@ -140,6 +142,9 @@ void loop() {
         float temp = val.toFloat();
         temp = temp / 1000;
         VE_voltage_pv = temp;
+      } else if (label == "PPV") {
+        float temp = val.toInt();
+        VE_power_pv = temp;
       } else if (label == "V") {
         val = val.substring(0, 4);
         float temp = val.toFloat();
@@ -150,9 +155,6 @@ void loop() {
         float temp = val.toFloat();
         temp = temp / 1000;
         VE_current = temp;
-      } else if (label == "PPV") {
-        float temp = val.toInt();
-        VE_power_pv = temp;
       } else if (label == "CS") {
         VE_state = val.toInt();
       } else if (label == "MPPT") {
@@ -187,7 +189,25 @@ void loop() {
       }  
     } 
 
-    if (millis() > prev_ms + 10000) {
+    // check dynamic values every second
+    if (millis() > prev_ms + 1000) {
+      // slow down, at night, if PV Voltage is lower than x Volts
+      if (VE_voltage_pv < 14.00) {
+        // slow down data sending;
+        sendingInterval = 300000;
+      }
+
+      // speed up intervals, if there is a bigger change in power
+      if (abs((int)oldPPVValue - (int)VE_power_pv) > 15) {
+        // speed up data sending;
+        sendingInterval = 2000;
+      }
+
+      // store "old" PV Power value for later comparison
+      oldPPVValue = VE_power_pv;
+    }
+
+    if (millis() > prev_ms + sendingInterval) {
       if ( checkWiFi()) {
 
         // in case mqtt connection is lost, restart device
