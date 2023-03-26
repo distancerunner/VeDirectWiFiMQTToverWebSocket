@@ -33,7 +33,7 @@ String getClockTime()
   }
   Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
 
-  return String((&timeinfo, "%A, %B %d %Y %H:%M:%S"));
+  return String(asctime(&timeinfo));
 }
 
 // Set time via NTP, as required for x.509 validation
