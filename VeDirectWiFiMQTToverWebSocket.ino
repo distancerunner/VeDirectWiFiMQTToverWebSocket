@@ -202,14 +202,23 @@ void loop() {
 
       // slow down, at night, if PV Voltage is lower than x Volts
       if (
-            (VE_voltage_pv < 14.00 && VE_voltage_pv > 4.00) ||
             ((int)VE_power_pv) == 0
           ) 
          {
         // slow down data sending;
         tickslower++;
+        sendingInterval = 20000;
+        pollingInterval = "slower";
+      }
+
+      if (
+            (VE_voltage_pv < 14.00 && VE_voltage_pv > 4.00)
+          ) 
+         {
+        // slow down data sending;
+        tickslower++;
         sendingInterval = 300000;
-        pollingInterval = "slow";
+        pollingInterval = "slowest";
       }
 
       // Serial.println((int)oldPPVValue - (int)VE_power_pv);
@@ -279,7 +288,8 @@ void loop() {
         Serial.print("Day Sequence Number    ");
         Serial.println(String(VE_day_sequence_number));
         Serial.print("State of operation     ");
-        Serial.println(VEStatus[VE_state].value);
+        Serial.println(VE_state);
+        Serial.println(VEStatus[(int)VE_state].value);
         Serial.print("Error Code             ");
         // Serial.println(VEError[VE_error].value);
         Serial.println(String(tickslower) + "/" + String(tickfaster));
