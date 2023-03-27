@@ -20,8 +20,6 @@ const char* time_zone = "CET-1CEST,M3.5.0,M10.5.0/3";  // TimeZone rule for Euro
 WebSocketsClient client;
 MQTTPubSubClient espMQTT;
 
-
-
 int ssid_count = sizeof(ssid) / sizeof(ssid[0]);
 
 String getClockTime()
@@ -32,6 +30,12 @@ String getClockTime()
     return "No Time set";
   }
   Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
+  Serial.print("Hour: ");
+  Serial.println(&timeinfo, "%H");
+  Serial.print("Minute: ");
+  Serial.println(&timeinfo, "%M");
+  Serial.print("Second: ");
+  Serial.println(&timeinfo, "%S");
 
   return String(asctime(&timeinfo));
 }
