@@ -24,6 +24,7 @@ EspSoftwareSerial::UART victronSerial;
 
 uint8_t tickslower=0;
 uint8_t tickfaster=0;
+uint32_t oldPPVValue = 0;
 String label, val, VE_prod_id, VE_fw, VE_serial_nr, VE_mppt, VE_OR;
 // 32 bit ints to collect the data from the device
 int32_t VE_state, VE_error, VE_yield_today, VE_power_max_today, VE_yield_yesterday, VE_power_pv,
@@ -100,8 +101,8 @@ void setup() {
 void loop() {
     espMQTT.update();  // should be called
     // counter++;
-    static uint32_t prev_ms = millis();
-    uint32_t oldPPVValue = 0;
+    static uint32_t timerTicker = millis();
+    static uint32_t timerTicker2 = millis();
     uint32_t sendingInterval = 10000;
 
     if(Serial.available()){
@@ -194,7 +195,7 @@ void loop() {
     } 
 
     // check dynamic values every second
-    if (millis() > prev_ms + 1000) {
+    if (millis() > timerTicker2 + 1000) {
       // slow down, at night, if PV Voltage is lower than x Volts
       if (VE_voltage_pv < 14.00 && VE_voltage_pv > 4.00) {
         // slow down data sending;
@@ -203,18 +204,20 @@ void loop() {
       }
 
       // speed up intervals, if there is a bigger change in power
-      if (abs((int)oldPPVValue - (int)VE_power_pv) > 15 && oldPPVValue > 0) {
-        Serial.println(abs((int)oldPPVValue - (int)VE_power_pv));
+      Serial.println(abs((int)oldPPVValue - (int)VE_power_pv));
+      // if (abs((int)oldPPVValue - (int)VE_power_pv) > 15 && oldPPVValue > 0) {
+      if (abs((int)oldPPVValue - (int)VE_power_pv) > 15) {
         // speed up data sending;
         tickfaster++;
         sendingInterval = 2000;
+        oldPPVValue = VE_power_pv;
       }
 
+      timerTicker2 = millis();
       // store "old" PV Power value for later comparison
-      oldPPVValue = VE_power_pv;
     }
 
-    if (millis() > prev_ms + sendingInterval) {
+    if (millis() > timerTicker + sendingInterval) {
       if ( checkWiFi()) {
 
         // in case mqtt connection is lost, restart device
@@ -283,7 +286,7 @@ void loop() {
         // mqttSend("/victron/sensor/ve_error", VEError[VE_error].value);
         mqttSend("/victron/sensor/ve_last_update", getClockTime());
         mqttSend("/victron/sensor/ve_wifi_ssid", WiFi.SSID());
-        prev_ms = millis();
+        timerTicker = millis();
       }
     }
 }
