@@ -21,7 +21,11 @@ EspSoftwareSerial::UART victronSerial;
 #endif
 
 
-int counter=0;
+uint8_t tickslower=0;
+uint8_t tickfaster=0;
+uint32_t oldPPVValue = 1; // must be 1 to init value later
+uint32_t sendingInterval = 10000;
+uint8_t firstRun = 1;
 String label, val, VE_prod_id, VE_fw, VE_serial_nr, VE_mppt, VE_OR;
 // 32 bit ints to collect the data from the device
 int32_t VE_state, VE_error, VE_yield_today, VE_power_max_today, VE_yield_yesterday, VE_power_pv,
@@ -98,7 +102,9 @@ void setup() {
 void loop() {
     espMQTT.update();  // should be called
     // counter++;
-    static uint32_t prev_ms = millis();
+    static uint32_t timerTicker = millis();
+    static uint32_t timerTicker2 = millis();
+    String pollingInterval = "normal";
 
     if(Serial.available()){
       // For testing, send USB input data over bridged pins from TX to RX pin
@@ -110,8 +116,11 @@ void loop() {
 #endif
     }
 
-    if (counter > 255) {
-      counter = 0;
+    if (tickslower > 1000) {
+      tickslower = 0;
+    }
+    if (tickfaster > 1000) {
+      tickfaster = 0;
     }
 
 #ifndef ESP32
@@ -139,6 +148,9 @@ void loop() {
         float temp = val.toFloat();
         temp = temp / 1000;
         VE_voltage_pv = temp;
+      } else if (label == "PPV") {
+        float temp = val.toInt();
+        VE_power_pv = temp;
       } else if (label == "V") {
         val = val.substring(0, 4);
         float temp = val.toFloat();
@@ -149,9 +161,6 @@ void loop() {
         float temp = val.toFloat();
         temp = temp / 1000;
         VE_current = temp;
-      } else if (label == "PPV") {
-        float temp = val.toInt();
-        VE_power_pv = temp;
       } else if (label == "CS") {
         VE_state = val.toInt();
       } else if (label == "MPPT") {
@@ -186,7 +195,51 @@ void loop() {
       }  
     } 
 
-    if (millis() > prev_ms + 10000) {
+    // check dynamic values every second
+    if (millis() > timerTicker2 + 2000) {
+      sendingInterval = 10000;
+
+      // slow down, at night, if PV Voltage is lower than x Volts
+      if (
+            ((int)VE_power_pv) == 0
+          ) 
+         {
+        // slow down data sending;
+        tickslower++;
+        sendingInterval = 20000;
+        pollingInterval = "slower";
+      }
+
+      if (
+            (VE_voltage_pv < 14.00 && VE_voltage_pv > 4.00)
+          ) 
+         {
+        // slow down data sending;
+        tickslower++;
+        sendingInterval = 300000;
+        pollingInterval = "slowest";
+      }
+
+      // Serial.println((int)oldPPVValue - (int)VE_power_pv);
+      // Serial.println((int)oldPPVValue);
+      // Serial.println((int)VE_power_pv);
+      // speed up intervals, if there is a bigger change in power
+      if (abs((int)oldPPVValue - (int)VE_power_pv) > 15 && oldPPVValue > 0) {
+        // speed up data sending;
+        tickfaster++;
+        sendingInterval = 2000;
+        oldPPVValue = VE_power_pv;
+        pollingInterval = "fast";
+      }
+
+      timerTicker2 = millis();
+      Serial.println("Polling Interval:");
+      Serial.println(String(pollingInterval));
+      // store "old" PV Power value for later comparison
+    }
+
+    if ((millis() > timerTicker + sendingInterval) || firstRun == 1  ) {
+      
       if ( checkWiFi()) {
 
         // in case mqtt connection is lost, restart device
@@ -234,14 +287,17 @@ void loop() {
         Serial.print("Day Sequence Number    ");
         Serial.println(String(VE_day_sequence_number));
         Serial.print("State of operation     ");
-        Serial.println(VEStatus[VE_state].value);
+        Serial.println(VE_state);
+        Serial.println(VEStatus[(int)VE_state].value);
         Serial.print("Error Code             ");
-        Serial.println(VEError[VE_error].value);
+        // Serial.println(VEError[VE_error].value);
+        Serial.println(String(tickslower) + "/" + String(tickfaster));
         Serial.println();
 
         Serial.print("Send MQTT data...");
         Serial.println();
         // mqttSend("/victron/sensor/watt", String(counter));
+        mqttSend("/victron/sensor/ve_polling_speed", String(pollingInterval));
         mqttSend("/victron/sensor/ve_power_pv", String(VE_power_pv));
         mqttSend("/victron/sensor/ve_voltage_pv", String(VE_voltage_pv));
         mqttSend("/victron/sensor/ve_yield_today", String(VE_yield_today));
@@ -250,14 +306,12 @@ void loop() {
         mqttSend("/victron/sensor/ve_voltage", String(VE_voltage));
         mqttSend("/victron/sensor/ve_current", String(VE_current));
         mqttSend("/victron/sensor/ve_state", VEStatus[VE_state].value);
-        mqttSend("/victron/sensor/ve_error", VEError[VE_error].value);
+        mqttSend("/victron/sensor/ve_error", VEError[VE_error].value + (String((int)tickslower) + "/" + String((int)tickfaster)));
+        // mqttSend("/victron/sensor/ve_error", VEError[VE_error].value);
         mqttSend("/victron/sensor/ve_last_update", getClockTime());
         mqttSend("/victron/sensor/ve_wifi_ssid", WiFi.SSID());
-        prev_ms = millis();
+        timerTicker = millis();
+        firstRun = 0;
       }
     }
 }
-
-
-
-
