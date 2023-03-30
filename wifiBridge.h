@@ -1,8 +1,3 @@
-#ifndef ESP32
-#include <ESP8266WiFi.h>
-#include <ESP8266WiFiMulti.h>
-ESP8266WiFiMulti WiFiMultiElement;
-#endif
 #ifdef ESP32
 #include <WiFi.h>
 #include <WiFiMulti.h>
@@ -10,13 +5,11 @@ WiFiMulti WiFiMultiElement;
 #endif
 
 
-const char* time_zone = "CET-1CEST,M3.5.0,M10.5.0/3";  // TimeZone rule for Europe/Rome including daylight adjustment rules (optional)
-
-
 #include <WebSocketsClient.h>  // include before MQTTPubSubClient.h
 #include <MQTTPubSubClient.h>
 #include <time.h>
 
+const char* time_zone = "CET-1CEST,M3.5.0,M10.5.0/3";  // TimeZone rule for Europe/Rome including daylight adjustment rules (optional)
 WebSocketsClient client;
 MQTTPubSubClient espMQTT;
 
