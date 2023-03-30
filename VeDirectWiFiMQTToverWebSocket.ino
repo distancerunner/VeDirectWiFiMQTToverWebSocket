@@ -2,24 +2,24 @@
 
 // #include <HardwareSerial.h>
 // #include "VEDirect.h"
-#include "wifiVEDirect.h"
+#include "wifiBridge.h"
 
 // #include <Wire.h>           
 // #include <LiquidCrystal_I2C.h> 
-#ifndef ESP32
-#include <SoftwareSerial.h>
-#define rxPin D2 // PINs according a new NodeMCU V3 Board, with an ESP8266 Chipset.
-#define txPin D3
-#endif
+// #ifndef ESP32
+// #include <SoftwareSerial.h>
+// #define rxPin D2 // PINs according a new NodeMCU V3 Board, with an ESP8266 Chipset.
+// #define txPin D3
+// #endif
 #ifdef ESP32
 #define rxPin 18 // PINs according a new NodeMCU V3 Board, with an ESP8266 Chipset.
 #define txPin 19
 #define LED_BUILTIN 2
 #endif
 
-#ifndef ESP32
-EspSoftwareSerial::UART victronSerial;
-#endif
+// #ifndef ESP32
+// EspSoftwareSerial::UART victronSerial;
+// #endif
 
 
 uint8_t tickslower=0;
@@ -36,6 +36,7 @@ float VE_voltage, VE_current, VE_voltage_pv, VE_yield_total;
 
 // Boolean to collect an ON/OFF value
 uint8_t VE_load;
+String pollingInterval = "undefined";
 
 typedef struct keyAndValue_ {
    int key;
@@ -105,13 +106,12 @@ void loop() {
     // counter++;
     static uint32_t timerTicker = millis();
     static uint32_t timerTicker2 = millis();
-    String pollingInterval = "normal";
 
     if(Serial.available()){
       // For testing, send USB input data over bridged pins from TX to RX pin
-#ifndef ESP32
-      victronSerial.write(Serial.read());
-#endif
+// #ifndef ESP32
+//       victronSerial.write(Serial.read());
+// #endif
 #ifdef ESP32
       Serial2.write(Serial.read());
 #endif
@@ -124,19 +124,19 @@ void loop() {
       tickfaster = 0;
     }
 
-#ifndef ESP32
-    if (victronSerial.available() > 0) {
-      Serial.println("Reading values from Victron Energy device using VE.Direct text mode");
-      Serial.println();
+// #ifndef ESP32
+//     if (victronSerial.available() > 0) {
+//       Serial.println("Reading values from Victron Energy device using VE.Direct text mode");
+//       Serial.println();
       
-      label = victronSerial.readStringUntil('\t');      
-      val = victronSerial.readStringUntil('\r');
-#endif
-#ifdef ESP32
+//       label = victronSerial.readStringUntil('\t');      
+//       val = victronSerial.readStringUntil('\r');
+// #endif
+// #ifdef ESP32
     if (Serial2.available() > 0) {
       label = Serial2.readStringUntil('\t');
       val = Serial2.readStringUntil('\r');
-#endif
+// #endif
       label.trim();
 
       if(label == "PID") {
@@ -198,6 +198,7 @@ void loop() {
 
     // check dynamic values every second
     if (millis() > timerTicker2 + 2000) {
+      pollingInterval = "normal";
       sendingInterval = 10000;
 
       // slow down, at night, if PV Voltage is lower than x Volts
