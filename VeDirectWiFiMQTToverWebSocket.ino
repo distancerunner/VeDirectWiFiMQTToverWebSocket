@@ -3,23 +3,10 @@
 // #include "VEDirect.h"
 #include "wifiBridge.h"
 
-// #include <Wire.h>           
-// #include <LiquidCrystal_I2C.h> 
-// #ifndef ESP32
-// #include <SoftwareSerial.h>
-// #define rxPin D2 // PINs according a new NodeMCU V3 Board, with an ESP8266 Chipset.
-// #define txPin D3
-// #endif
-#ifdef ESP32
-#define rxPin 18 // PINs according a new NodeMCU V3 Board, with an ESP8266 Chipset.
-#define txPin 19
-#define LED_BUILTIN 2
-#endif
+#include "DHT.h"
+#define DHT11PIN 21
 
-// #ifndef ESP32
-// EspSoftwareSerial::UART victronSerial;
-// #endif
-
+DHT dht(DHT11PIN, DHT11);
 
 uint8_t tickslower=0;
 uint8_t tickfaster=0;
@@ -69,13 +56,9 @@ int mqtt_server_count = sizeof(mqtt_server) / sizeof(mqtt_server[0]);
 
 void setup() {
   Serial.begin(19200);
-  pinMode(LED_BUILTIN, OUTPUT);  // Initialize the LED_BUILTIN pin as an output
-#ifndef ESP32
-  victronSerial.begin(19200, SWSERIAL_8N1, rxPin, txPin, false);
-#endif
-#ifdef ESP32
+  dht.begin();
+
   Serial2.begin(19200, SERIAL_8N1, 18, 19); // Pins D18 and D19 accoring an ESP32 DEVKITV1
-#endif
   
   if (startWiFiMulti()) {
     Serial.println("Wifi connected make next step...");
@@ -106,15 +89,6 @@ void loop() {
     static uint32_t timerTicker = millis();
     static uint32_t timerTicker2 = millis();
 
-    if(Serial.available()){
-      // For testing, send USB input data over bridged pins from TX to RX pin
-// #ifndef ESP32
-//       victronSerial.write(Serial.read());
-// #endif
-#ifdef ESP32
-      Serial2.write(Serial.read());
-#endif
-    }
 
     if (tickslower > 1000) {
       tickslower = 0;
@@ -123,19 +97,10 @@ void loop() {
       tickfaster = 0;
     }
 
-// #ifndef ESP32
-//     if (victronSerial.available() > 0) {
-//       Serial.println("Reading values from Victron Energy device using VE.Direct text mode");
-//       Serial.println();
-      
-//       label = victronSerial.readStringUntil('\t');      
-//       val = victronSerial.readStringUntil('\r');
-// #endif
-// #ifdef ESP32
     if (Serial2.available() > 0) {
       label = Serial2.readStringUntil('\t');
       val = Serial2.readStringUntil('\r');
-// #endif
+
       label.trim();
 
       if(label == "PID") {
@@ -240,6 +205,10 @@ void loop() {
     }
 
     if ((millis() > timerTicker + sendingInterval) || firstRun == 1  ) {
+
+      float DHThumi = dht.readHumidity();
+      float DHTtemp = dht.readTemperature();
+      float DHTheatindex = dht.computeHeatIndex(DHTtemp, DHThumi, false);
       
       if ( checkWiFi()) {
 
@@ -261,6 +230,12 @@ void loop() {
         }
 
         // Print each of the values
+        Serial.print("Humidity               ");
+        Serial.println(String(DHThumi));
+        Serial.print("Temperature            ");
+        Serial.println(String(DHTtemp));
+        Serial.print("heat index             ");
+        Serial.println(String(DHTheatindex));
         Serial.print("Voltage                ");
         Serial.println(String(VE_voltage));
         Serial.print("Current                ");
@@ -298,6 +273,10 @@ void loop() {
         Serial.print("Send MQTT data...");
         Serial.println();
         // mqttSend("/victron/sensor/watt", String(counter));
+        mqttSend("/victron/sensor/ve_dht_humi", String(DHThumi));
+        mqttSend("/victron/sensor/ve_dht_temp", String(DHTtemp));
+        mqttSend("/victron/sensor/ve_dht_heatindex", String(DHTheatindex));
+
         mqttSend("/victron/sensor/ve_polling_speed", String(pollingInterval));
         mqttSend("/victron/sensor/ve_power_pv", String(VE_power_pv));
         mqttSend("/victron/sensor/ve_voltage_pv", String(VE_voltage_pv));
