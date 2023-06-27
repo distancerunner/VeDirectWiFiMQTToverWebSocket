@@ -8,6 +8,7 @@
 
 DHT dht(DHT11PIN, DHT11);
 
+String wifiSSIDValue="noSSID";
 uint8_t tickslower=0;
 uint8_t tickfaster=0;
 uint32_t oldPPVValue = 1; // must be 1 to init value later
@@ -23,6 +24,10 @@ float VE_voltage, VE_current, VE_voltage_pv, VE_yield_total;
 // Boolean to collect an ON/OFF value
 uint8_t VE_load;
 String pollingInterval = "undefined";
+
+static uint32_t timerTickerDisplay = millis();
+uint16_t whatchDogTicks = 0;
+TaskHandle_t Task1;
 
 typedef struct keyAndValue_ {
    int key;
@@ -55,6 +60,15 @@ keyAndValue_t VEError[] = {
 int mqtt_server_count = sizeof(mqtt_server) / sizeof(mqtt_server[0]);
 
 void setup() {
+  xTaskCreatePinnedToCore(
+    myWhatchdog,   /* Task function. */
+    "Task1",     /* name of task. */
+    10000,       /* Stack size of task */
+    NULL,        /* parameter of the task */
+    1,           /* priority of the task */
+    &Task1,      /* Task handle to keep track of created task */
+    0);          /* pin task to core 0 */
+
   Serial.begin(19200);
   dht.begin();
 
@@ -66,6 +80,8 @@ void setup() {
   
     setClock();
     if ( startMQTT()) {
+      wifiSSIDValue = WiFi.SSID();
+      wifiSSIDValue = wifiSSIDValue + " " + WiFi.localIP().toString();
       return;
     }     
   }
@@ -80,6 +96,27 @@ void setup() {
   Serial.println("Wait 30s and than restart...");
   delay(30000);
   ESP.restart();
+}
+
+void myWhatchdog( void * pvParameters ){
+  for(;;){
+    // lockVariable();
+    if ((millis() > timerTickerDisplay + 60000)) {
+    // if ((millis() > timerTickerDisplay + 1000)) {
+        
+        whatchDogTicks++; // will increment ticks every minute
+        timerTickerDisplay = millis();
+        Serial.print("whatchDogTicks ");
+        Serial.println(whatchDogTicks);
+
+        if (whatchDogTicks > 10) { // restart after 10*60s if no mqtt was sent succesfully
+          Serial.println("State undefined: Restart controller now.");
+          ESP.restart();
+        }
+    }
+    // unlockVariable();
+    vTaskDelay(5);
+  }
 }
 
 
@@ -270,6 +307,7 @@ void loop() {
         Serial.println(String(tickslower) + "/" + String(tickfaster));
         Serial.println();
 
+        whatchDogTicks = 0;
         Serial.print("Send MQTT data...");
         Serial.println();
         // mqttSend("/victron/sensor/watt", String(counter));
@@ -289,7 +327,7 @@ void loop() {
         mqttSend("/victron/sensor/ve_error", VEError[VE_error].value + (String((int)tickslower) + "/" + String((int)tickfaster)));
         // mqttSend("/victron/sensor/ve_error", VEError[VE_error].value);
         mqttSend("/victron/sensor/ve_last_update", getClockTime());
-        mqttSend("/victron/sensor/ve_wifi_ssid", WiFi.SSID());
+        mqttSend("/victron/sensor/ve_wifi_ssid", wifiSSIDValue);
         timerTicker = millis();
         firstRun = 0;
       }

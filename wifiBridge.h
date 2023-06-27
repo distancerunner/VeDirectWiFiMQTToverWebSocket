@@ -1,8 +1,8 @@
-#ifdef ESP32
+// #ifdef ESP32
 #include <WiFi.h>
 #include <WiFiMulti.h>
 WiFiMulti WiFiMultiElement;
-#endif
+// #endif
 
 
 #include <WebSocketsClient.h>  // include before MQTTPubSubClient.h
